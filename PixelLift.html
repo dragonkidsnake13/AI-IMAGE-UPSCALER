@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PixelLift — AI Image Upscaler</title>
+
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #0b100e;
+  --panel: #141c18;
+  --line: #2a3830;
+  --green: #b8f36b;
+  --text: #f1f6f1;
+  --muted: #a0b0a5;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px system-ui, sans-serif;
+}
+header {
+  padding: 20px max(20px, calc((100% - 1000px)/2));
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.logo { font-size: 23px; font-weight: 850; letter-spacing: -1px; }
+.logo span { color: var(--green); }
+.tag {
+  color: var(--green);
+  border: 1px solid #40572f;
+  border-radius: 30px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+main { max-width: 1000px; margin: auto; padding: 38px 18px; }
+h1 {
+  font-size: clamp(34px, 6vw, 56px);
+  line-height: 1.05;
+  letter-spacing: -2px;
+  margin: 10px 0;
+}
+h1 span { color: var(--green); }
+.subtitle { color: var(--muted); line-height: 1.7; }
+.panel {
+  margin-top: 26px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--panel);
+}
+.drop {
+  min-height: 170px;
+  border: 2px dashed #405247;
+  border-radius: 13px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 20px;
+  cursor: pointer;
+}
+.drop:hover { border-color: var(--green); }
+.drop strong { display: block; font-size: 18px; margin-bottom: 6px; }
+.muted { color: var(--muted); font-size: 13px; }
+input[type=file] { display: none; }
+.controls {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 17px;
+}
+select, button {
+  font: inherit;
+  border-radius: 10px;
+  padding: 12px 15px;
+}
+select {
+  background: #202a24;
+  border: 1px solid var(--line);
+  color: white;
+}
+button {
+  cursor: pointer;
+  border: 0;
+  background: var(--green);
+  color: #14200e;
+  font-weight: 800;
+}
+button:disabled { opacity: .45; cursor: not-allowed; }
+#download { display: none; text-decoration: none; }
+a.button {
+  display: inline-block;
+  padding: 12px 15px;
+  border-radius: 10px;
+  background: #24332a;
+  color: var(--green);
+  font-weight: 750;
+}
+#status { margin-top: 17px; color: var(--muted); line-height: 1.6; }
+progress { width: 100%; height: 8px; accent-color: var(--green); }
+.preview {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 14px;
+  margin-top: 22px;
+}
+.preview article {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  padding: 12px;
+  background: #101713;
+}
+.preview h3 { font-size: 13px; color: var(--muted); }
+.preview img, .preview canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  background: #202923;
+}
+.preview canvas { display: none; }
+.note { font-size: 12px; color: var(--muted); line-height: 1.7; }
+footer {
+  max-width: 1000px;
+  margin: auto;
+  padding: 0 18px 35px;
+  color: var(--muted);
+  font-size: 12px;
+}
+@media(max-width:540px) {
+  .preview { grid-template-columns: 1fr; }
+  .controls > * { width: 100%; }
+  header { gap: 8px; }
+}
+</style>
+</head>
+
+<body>
+<header>
+  <div class="logo">Pixel<span>Lift</span></div>
+  <div class="tag">REAL AI · 4× UPSCALING</div>
+</header>
+
+<main>
+  <p class="tag">YOUR IMAGES STAY ON YOUR DEVICE</p>
+  <h1>Small image.<br><span>Big upgrade.</span></h1>
+  <p class="subtitle">
+    Upscale photos with a real Real-ESRGAN neural network,
+    running in your browser. No account or paid API.
+  </p>
+
+  <section class="panel">
+    <label class="drop" for="file">
+      <div>
+        <strong>＋ Choose an image</strong>
+        <span class="muted">PNG, JPEG or WebP · Start with a small image</span>
+      </div>
+    </label>
+    <input id="file" type="file" accept="image/png,image/jpeg,image/webp">
+
+    <div class="controls">
+      <button id="upscale" disabled>Upscale with AI ↗</button>
+      <select id="engine" aria-label="Processing engine">
+        <option value="wasm">Compatible mode (WASM)</option>
+        <option value="webgpu">WebGPU (experimental)</option>
+      </select>
+      <a id="download" class="button">Download PNG ↓</a>
+    </div>
+
+    <div id="status">Choose an image to begin.</div>
+    <progress id="progress" max="100" value="0"></progress>
+
+    <div class="preview">
+      <article>
+        <h3>ORIGINAL</h3>
+        <img id="original" alt="Original image preview">
+      </article>
+      <article>
+        <h3>AI UPSCALED · 4×</h3>
+        <canvas id="result"></canvas>
+      </article>
+    </div>
+
+    <p class="note">
+      The AI model is downloaded from Hugging Face on the first run.
+      Image inference is performed in this browser. Large images are
+      reduced before processing to limit memory usage.
+    </p>
+  </section>
+</main>
+
+<footer>
+  PixelLift uses Real-ESRGAN General x4v3.
+  Model weights are distributed under the BSD 3-Clause license.
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.min.js"></script>
+<script>
+(() => {
+  "use strict";
+
+  const $ = id => document.getElementById(id);
+  const MODEL_URL =
+    "https://huggingface.co/skillsafe-ai/realesr-general-x4v3/resolve/main/model.onnx";
+
+  const TILE = 128;
+  const OVERLAP = 8;
+  const SCALE = 4;
+  const MAX_SIDE = 768;
+
+  let selectedImage = null;
+  let sessionPromise = null;
+  let busy = false;
+
+  function status(message, percent) {
+    $("status").textContent = message;
+    $("progress").value = percent;
+  }
+
+  function setBusy(value) {
+    busy = value;
+    $("upscale").disabled = value || !selectedImage;
+    $("file").disabled = value;
+    $("engine").disabled = value;
+  }
+
+  function loadSession() {
+    if (sessionPromise) return sessionPromise;
+
+    sessionPromise = (async () => {
+      if (!window.ort) {
+        throw new Error(
+          "ONNX Runtime failed to load. Check your internet connection."
+        );
+      }
+
+      // The dynamic-shape model is intended for WASM inference.
+      // WebGPU is attempted only when explicitly selected.
+      const engine = $("engine").value;
+      const providers = engine === "webgpu"
+        ? ["webgpu", "wasm"]
+        : ["wasm"];
+
+      status("Loading AI runtime and downloading model…", 3);
+
+      return await ort.InferenceSession.create(MODEL_URL, {
+        executionProviders: providers,
+        graphOptimizationLevel: "all"
+      });
+    })().catch(error => {
+      sessionPromise = null;
+      throw error;
+    });
+
+    return sessionPromise;
+  }
+
+  function imageToCanvas(image) {
+    const scale = Math.min(
+      1,
+      MAX_SIDE / Math.max(image.naturalWidth, image.naturalHeight)
+    );
+
+    const width = Math.max(1, Math.round(image.naturalWidth * scale));
+    const height = Math.max(1, Math.round(image.naturalHeight * scale));
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    ctx.drawImage(image, 0, 0, width, height);
+
+    return canvas;
+  }
+
+  function makeInput(canvas, x, y, width, height) {
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    const pixels = ctx.getImageData(x, y, width, height).data;
+    const plane = width * height;
+    const data = new Float32Array(3 * plane);
+
+    for (let i = 0; i < plane; i++) {
+      data[i] = pixels[i * 4] / 255;
+      data[plane + i] = pixels[i * 4 + 1] / 255;
+      data[2 * plane + i] = pixels[i * 4 + 2] / 255;
+    }
+
+    return new ort.Tensor("float32", data, [1, 3, height, width]);
+  }
+
+  function tensorToCanvas(tensor) {
+    const dims = tensor.dims;
+    const height = dims[2];
+    const width = dims[3];
+    const plane = width * height;
+    const data = tensor.data;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+
+    const ctx = canvas.getContext("2d");
+    const imageData = ctx.createImageData(width, height);
+
+    for (let i = 0; i < plane; i++) {
+      imageData.data[i * 4] =
+        Math.max(0, Math.min(255, Math.round(data[i] * 255)));
+      imageData.data[i * 4 + 1] =
+        Math.max(0, Math.min(255, Math.round(data[plane + i] * 255)));
+      imageData.data[i * 4 + 2] =
+        Math.max(0, Math.min(255, Math.round(data[2 * plane + i] * 255)));
+      imageData.data[i * 4 + 3] = 255;
+    }
+
+    ctx.putImageData(imageData, 0, 0);
+    return canvas;
+  }
+
+  async function runTile(session, inputCanvas, outputCanvas,
+                         coreX, coreY, coreW, coreH) {
+    const x0 = Math.max(0, coreX - OVERLAP);
+    const y0 = Math.max(0, coreY - OVERLAP);
+    const x1 = Math.min(inputCanvas.width, coreX + coreW + OVERLAP);
+    const y1 = Math.min(inputCanvas.height, coreY + coreH + OVERLAP);
+
+    const tileW = x1 - x0;
+    const tileH = y1 - y0;
+    const input = makeInput(inputCanvas, x0, y0, tileW, tileH);
+
+    const results = await session.run({
+      [session.inputNames[0]]: input
+    });
+
+    const output = results[session.outputNames[0]];
+    const tileCanvas = tensorToCanvas(output);
+
+    const sourceX = (coreX - x0) * SCALE;
+    const sourceY = (coreY - y0) * SCALE;
+    const sourceW = coreW * SCALE;
+    const sourceH = coreH * SCALE;
+
+    const ctx = outputCanvas.getContext("2d");
+    ctx.drawImage(
+      tileCanvas,
+      sourceX, sourceY, sourceW, sourceH,
+      coreX * SCALE, coreY * SCALE, sourceW, sourceH
+    );
+
+    input.dispose?.();
+    output.dispose?.();
+  }
+
+  async function upscale() {
+    if (busy || !selectedImage) return;
+    setBusy(true);
+    $("download").style.display = "none";
+    $("result").style.display = "none";
+
+    try {
+      status("Preparing image…", 1);
+      const inputCanvas = imageToCanvas(selectedImage);
+      const width = inputCanvas.width;
+      const height = inputCanvas.height;
+
+      const outputCanvas = $("result");
+      outputCanvas.width = width * SCALE;
+      outputCanvas.height = height * SCALE;
+
+      const session = await loadSession();
+
+      const tilesX = Math.ceil(width / TILE);
+      const tilesY = Math.ceil(height / TILE);
+      const total = tilesX * tilesY;
+      let completed = 0;
+
+      for (let y = 0; y < height; y += TILE) {
+        for (let x = 0; x < width; x += TILE) {
+          const w = Math.min(TILE, width - x);
+          const h = Math.min(TILE, height - y);
+
+          await runTile(session, inputCanvas, outputCanvas, x, y, w, h);
+          completed++;
+
+          status(
+            `AI processing tile ${completed} of ${total}…`,
+            Math.round(completed / total * 100)
+          );
+        }
+      }
+
+      outputCanvas.style.display = "block";
+      $("download").href = outputCanvas.toDataURL("image/png");
+      $("download").download = "pixellift-upscaled.png";
+      $("download").style.display = "inline-block";
+
+      status(
+        `Finished! ${width} × ${height} → ` +
+        `${width * SCALE} × ${height * SCALE} pixels.`,
+        100
+      );
+    } catch (error) {
+      console.error(error);
+      const message = String(error?.message || error);
+
+      if (/fetch|network|load model|failed to load/i.test(message)) {
+        status(
+          "Couldn't download the model/runtime. Check the connection, " +
+          "then reload. Details: " + message,
+          0
+        );
+      } else {
+        status("AI upscaling failed: " + message, 0);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  $("file").addEventListener("change", event => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      status("Please select a valid image file.", 0);
+      return;
+    }
+
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+
+    img.onload = () => {
+      if (selectedImage?.src?.startsWith("blob:")) {
+        URL.revokeObjectURL(selectedImage.src);
+      }
+
+      selectedImage = img;
+      $("original").src = url;
+      $("result").style.display = "none";
+      $("download").style.display = "none";
+      $("upscale").disabled = false;
+
+      status(
+        `Image ready: ${img.naturalWidth} × ${img.naturalHeight}.`,
+        0
+      );
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      status("Could not read that image. Try a PNG or JPEG.", 0);
+    };
+
+    img.src = url;
+  });
+
+  $("upscale").addEventListener("click", upscale);
+})();
+</script>
+</body>
+</html>
