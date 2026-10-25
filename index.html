@@ -3,7 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PixelLift — AI Image Upscaler</title>
+<title>PixelLift — Free AI Image Upscaler Online</title>
+<meta name="description"
+      content="Upscale images up to 4× with PixelLift, a free browser-based AI image upscaler. Enhance image resolution privately on your device, with no account or paid API.">
+
+<meta name="theme-color" content="#0b100e">
+
+<meta property="og:title"
+      content="PixelLift — Free AI Image Upscaler">
+
+<meta property="og:description"
+      content="Upscale images with AI directly in your browser.">
+
+<meta property="og:type" content="website">
 
 <style>
 :root {
@@ -134,6 +146,40 @@ footer {
   color: var(--muted);
   font-size: 12px;
 }
+
+
+.seo-content {
+  margin-top: 42px;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--panel);
+  line-height: 1.8;
+}
+
+.seo-content h2 {
+  margin-top: 28px;
+  font-size: 23px;
+}
+
+.seo-content h2:first-child {
+  margin-top: 0;
+}
+
+.seo-content h3 {
+  font-size: 17px;
+  color: var(--green);
+}
+
+.seo-content p,
+.seo-content li {
+  color: var(--muted);
+}
+
+.seo-content li {
+  margin-bottom: 8px;
+}
+
 @media(max-width:540px) {
   .preview { grid-template-columns: 1fr; }
   .controls > * { width: 100%; }
@@ -194,6 +240,47 @@ footer {
       reduced before processing to limit memory usage.
     </p>
   </section>
+
+  <section class="seo-content">
+    <h2>Free AI Image Upscaler Online</h2>
+    <p>
+      PixelLift uses the Real-ESRGAN General x4v3 neural
+      network to upscale images directly in your browser.
+      Choose an image, process it with AI, preview the
+      result, and download a PNG.
+    </p>
+
+    <h2>How to Upscale an Image</h2>
+    <ol>
+      <li>Choose a PNG, JPEG, or WebP image.</li>
+      <li>Click "Upscale with AI".</li>
+      <li>Wait for the AI model to process the image.</li>
+      <li>Preview and download your upscaled PNG.</li>
+    </ol>
+
+    <h2>Private Image Processing</h2>
+    <p>
+      PixelLift processes your selected image locally in
+      your browser. The AI model and runtime are downloaded
+      from external services when required.
+    </p>
+
+    <h2>Frequently Asked Questions</h2>
+
+    <h3>Is PixelLift free?</h3>
+    <p>
+      PixelLift does not require a paid inference API.
+      Processing speed depends on your device and browser.
+    </p>
+
+    <h3>Does PixelLift upload my image?</h3>
+    <p>
+      Image inference runs in your browser rather than
+      uploading the selected image to an image-processing
+      server.
+    </p>
+  </section>
+
 </main>
 
 <footer>
