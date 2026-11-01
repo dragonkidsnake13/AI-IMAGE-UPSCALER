@@ -3,553 +3,850 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PixelLift — Free AI Image Upscaler Online</title>
-<meta name="description"
-      content="Upscale images up to 4× with PixelLift, a free browser-based AI image upscaler. Enhance image resolution privately on your device, with no account or paid API.">
-
-<meta name="theme-color" content="#0b100e">
-
-<meta property="og:title"
-      content="PixelLift — Free AI Image Upscaler">
-
-<meta property="og:description"
-      content="Upscale images with AI directly in your browser.">
-
-<meta property="og:type" content="website">
+<title>PixelLift Distributed</title>
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.min.js"></script>
 
 <style>
-:root {
-  color-scheme: dark;
-  --bg: #0b100e;
-  --panel: #141c18;
-  --line: #2a3830;
-  --green: #b8f36b;
-  --text: #f1f6f1;
-  --muted: #a0b0a5;
+:root{
+  --bg:#0b0e14;
+  --panel:#151b26;
+  --border:#293448;
+  --text:#eef2ff;
+  --muted:#98a5bd;
+  --accent:#a8ef69;
 }
-* { box-sizing: border-box; }
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  font: 15px system-ui, sans-serif;
+*{box-sizing:border-box}
+body{
+  margin:0;
+  padding:25px;
+  background:var(--bg);
+  color:var(--text);
+  font:15px system-ui,Arial;
 }
-header {
-  padding: 20px max(20px, calc((100% - 1000px)/2));
-  border-bottom: 1px solid var(--line);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+main{max-width:950px;margin:auto}
+h1{font-size:29px;margin-bottom:4px}
+.subtitle{color:var(--muted)}
+.panel{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:15px;
+  padding:20px;
+  margin:17px 0;
 }
-.logo { font-size: 23px; font-weight: 850; letter-spacing: -1px; }
-.logo span { color: var(--green); }
-.tag {
-  color: var(--green);
-  border: 1px solid #40572f;
-  border-radius: 30px;
-  padding: 6px 10px;
-  font-size: 12px;
+h2{font-size:18px;margin-top:0}
+label{display:block;margin:13px 0 7px}
+input,select,textarea{
+  width:100%;
+  padding:11px;
+  border-radius:8px;
+  border:1px solid var(--border);
+  background:#0b111c;
+  color:white;
+  font:inherit;
 }
-main { max-width: 1000px; margin: auto; padding: 38px 18px; }
-h1 {
-  font-size: clamp(34px, 6vw, 56px);
-  line-height: 1.05;
-  letter-spacing: -2px;
-  margin: 10px 0;
+textarea{height:110px;resize:vertical}
+button{
+  background:var(--accent);
+  color:#14200e;
+  border:0;
+  border-radius:8px;
+  padding:12px 17px;
+  font-weight:750;
+  cursor:pointer;
 }
-h1 span { color: var(--green); }
-.subtitle { color: var(--muted); line-height: 1.7; }
-.panel {
-  margin-top: 26px;
-  padding: 20px;
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  background: var(--panel);
+button:disabled{opacity:.4;cursor:not-allowed}
+.grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:13px;
 }
-.drop {
-  min-height: 170px;
-  border: 2px dashed #405247;
-  border-radius: 13px;
-  display: grid;
-  place-items: center;
-  text-align: center;
-  padding: 20px;
-  cursor: pointer;
+.progress{
+  height:10px;
+  background:#30394a;
+  border-radius:20px;
+  overflow:hidden;
+  margin-top:15px;
 }
-.drop:hover { border-color: var(--green); }
-.drop strong { display: block; font-size: 18px; margin-bottom: 6px; }
-.muted { color: var(--muted); font-size: 13px; }
-input[type=file] { display: none; }
-.controls {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  align-items: center;
-  margin-top: 17px;
+#bar{
+  height:100%;
+  width:0;
+  background:var(--accent);
+  transition:width .15s;
 }
-select, button {
-  font: inherit;
-  border-radius: 10px;
-  padding: 12px 15px;
+.status{color:var(--accent);overflow-wrap:anywhere}
+.muted{color:var(--muted);font-size:13px;line-height:1.5}
+.stats{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
 }
-select {
-  background: #202a24;
-  border: 1px solid var(--line);
-  color: white;
+.stat{
+  background:#0e1420;
+  border:1px solid var(--border);
+  border-radius:9px;
+  padding:12px;
 }
-button {
-  cursor: pointer;
-  border: 0;
-  background: var(--green);
-  color: #14200e;
-  font-weight: 800;
+.stat strong{display:block;margin-bottom:5px}
+#preview{
+  max-width:100%;
+  display:block;
+  margin-top:15px;
+  border-radius:8px;
 }
-button:disabled { opacity: .45; cursor: not-allowed; }
-#download { display: none; text-decoration: none; }
-a.button {
-  display: inline-block;
-  padding: 12px 15px;
-  border-radius: 10px;
-  background: #24332a;
-  color: var(--green);
-  font-weight: 750;
-}
-#status { margin-top: 17px; color: var(--muted); line-height: 1.6; }
-progress { width: 100%; height: 8px; accent-color: var(--green); }
-.preview {
-  display: grid;
-  grid-template-columns: repeat(2,minmax(0,1fr));
-  gap: 14px;
-  margin-top: 22px;
-}
-.preview article {
-  min-width: 0;
-  border: 1px solid var(--line);
-  border-radius: 13px;
-  padding: 12px;
-  background: #101713;
-}
-.preview h3 { font-size: 13px; color: var(--muted); }
-.preview img, .preview canvas {
-  display: block;
-  width: 100%;
-  height: auto;
-  border-radius: 8px;
-  background: #202923;
-}
-.preview canvas { display: none; }
-.note { font-size: 12px; color: var(--muted); line-height: 1.7; }
-footer {
-  max-width: 1000px;
-  margin: auto;
-  padding: 0 18px 35px;
-  color: var(--muted);
-  font-size: 12px;
-}
-
-
-.seo-content {
-  margin-top: 42px;
-  padding: 24px;
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  background: var(--panel);
-  line-height: 1.8;
-}
-
-.seo-content h2 {
-  margin-top: 28px;
-  font-size: 23px;
-}
-
-.seo-content h2:first-child {
-  margin-top: 0;
-}
-
-.seo-content h3 {
-  font-size: 17px;
-  color: var(--green);
-}
-
-.seo-content p,
-.seo-content li {
-  color: var(--muted);
-}
-
-.seo-content li {
-  margin-bottom: 8px;
-}
-
-@media(max-width:540px) {
-  .preview { grid-template-columns: 1fr; }
-  .controls > * { width: 100%; }
-  header { gap: 8px; }
+canvas{display:none}
+@media(max-width:600px){
+  body{padding:13px}
+  .grid,.stats{grid-template-columns:1fr}
 }
 </style>
 </head>
 
 <body>
-<header>
-  <div class="logo">Pixel<span>Lift</span></div>
-  <div class="tag">REAL AI · 4× UPSCALING</div>
-</header>
-
 <main>
-  <p class="tag">YOUR IMAGES STAY ON YOUR DEVICE</p>
-  <h1>Small image.<br><span>Big upgrade.</span></h1>
-  <p class="subtitle">
-    Upscale photos with a real Real-ESRGAN neural network,
-    running in your browser. No account or paid API.
-  </p>
 
-  <section class="panel">
-    <label class="drop" for="file">
-      <div>
-        <strong>＋ Choose an image</strong>
-        <span class="muted">PNG, JPEG or WebP · Start with a small image</span>
-      </div>
-    </label>
-    <input id="file" type="file" accept="image/png,image/jpeg,image/webp">
+<h1>PixelLift Distributed</h1>
+<p class="subtitle">Two-device AI upscaling system</p>
 
-    <div class="controls">
-      <button id="upscale" disabled>Upscale with AI ↗</button>
-      <select id="engine" aria-label="Processing engine">
-        <option value="wasm">Compatible mode (WASM)</option>
-        <option value="webgpu">WebGPU (experimental)</option>
-      </select>
-      <a id="download" class="button">Download PNG ↓</a>
-    </div>
+<section class="panel">
+<h2>01. Device connection</h2>
 
-    <div id="status">Choose an image to begin.</div>
-    <progress id="progress" max="100" value="0"></progress>
+<p class="muted">
+Open worker.html on your OPPO. Create an offer from this Chromebook,
+then paste that offer into your phone.
+</p>
 
-    <div class="preview">
-      <article>
-        <h3>ORIGINAL</h3>
-        <img id="original" alt="Original image preview">
-      </article>
-      <article>
-        <h3>AI UPSCALED · 4×</h3>
-        <canvas id="result"></canvas>
-      </article>
-    </div>
+<button id="connect">Create Chromebook offer</button>
 
-    <p class="note">
-      The AI model is downloaded from Hugging Face on the first run.
-      Image inference is performed in this browser. Large images are
-      reduced before processing to limit memory usage.
-    </p>
-  </section>
+<label>Chromebook offer</label>
+<textarea id="offer" readonly placeholder="Your offer appears here"></textarea>
 
-  <section class="seo-content">
-    <h2>Free AI Image Upscaler Online</h2>
-    <p>
-      PixelLift uses the Real-ESRGAN General x4v3 neural
-      network to upscale images directly in your browser.
-      Choose an image, process it with AI, preview the
-      result, and download a PNG.
-    </p>
+<label>OPPO answer</label>
+<textarea id="answer" placeholder="Paste the answer generated by your OPPO"></textarea>
 
-    <h2>How to Upscale an Image</h2>
-    <ol>
-      <li>Choose a PNG, JPEG, or WebP image.</li>
-      <li>Click "Upscale with AI".</li>
-      <li>Wait for the AI model to process the image.</li>
-      <li>Preview and download your upscaled PNG.</li>
-    </ol>
+<button id="finish">Connect OPPO</button>
 
-    <h2>Private Image Processing</h2>
-    <p>
-      PixelLift processes your selected image locally in
-      your browser. The AI model and runtime are downloaded
-      from external services when required.
-    </p>
+<p class="status" id="connectionStatus">Not connected</p>
+</section>
 
-    <h2>Frequently Asked Questions</h2>
+<section class="panel">
+<h2>02. Image processing</h2>
 
-    <h3>Is PixelLift free?</h3>
-    <p>
-      PixelLift does not require a paid inference API.
-      Processing speed depends on your device and browser.
-    </p>
+<label>Select image</label>
+<input type="file" id="imageFile" accept="image/*">
 
-    <h3>Does PixelLift upload my image?</h3>
-    <p>
-      Image inference runs in your browser rather than
-      uploading the selected image to an image-processing
-      server.
-    </p>
-  </section>
+<div class="grid">
+<div>
+<label>AI model</label>
+<select id="model">
+<option value="general">Real-ESRGAN General x4v3</option>
+<option value="x4plus">Real-ESRGAN x4plus</option>
+<option value="swinir">SwinIR RealSR x4</option>
+</select>
+</div>
+
+<div>
+<label>Chromebook engine</label>
+<select id="engine">
+<option value="auto">Automatic</option>
+<option value="webgpu">WebGPU</option>
+<option value="wasm">WASM</option>
+</select>
+</div>
+</div>
+
+<label>Tile size</label>
+<select id="tileSize">
+<option value="64">64 × 64</option>
+<option value="128" selected>128 × 128</option>
+<option value="256">256 × 256</option>
+</select>
+
+<p class="muted">
+SwinIR requires 64 × 64 input tiles with the supplied worker model.
+For SwinIR, the controller will automatically use 64 × 64.
+</p>
+
+<button id="start" disabled>Start distributed processing</button>
+
+<div class="progress"><div id="bar"></div></div>
+<p id="progressText">Waiting for image...</p>
+<p class="status" id="processingStatus">Ready</p>
+</section>
+
+<section class="panel">
+<h2>03. Processing devices</h2>
+<div class="stats">
+<div class="stat">
+<strong>Chromebook</strong>
+<span id="localStatus">Ready</span>
+</div>
+<div class="stat">
+<strong>OPPO</strong>
+<span id="remoteStatus">Disconnected</span>
+</div>
+</div>
+<p class="muted" id="workStatus">
+Tiles will be distributed between both devices.
+</p>
+</section>
+
+<section class="panel">
+<h2>04. Output</h2>
+<p id="dimensions">No output yet.</p>
+<img id="preview" hidden alt="Upscaled result">
+<button id="download" disabled>Download 4× PNG</button>
+</section>
 
 </main>
 
-<footer>
-  PixelLift uses Real-ESRGAN General x4v3.
-  Model weights are distributed under the BSD 3-Clause license.
-</footer>
-
-<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.min.js"></script>
 <script>
-(() => {
-  "use strict";
+"use strict";
 
-  const $ = id => document.getElementById(id);
-  const MODEL_URL =
-    "https://huggingface.co/skillsafe-ai/realesr-general-x4v3/resolve/main/model.onnx";
+const $=id=>document.getElementById(id);
 
-  const TILE = 128;
-  const OVERLAP = 8;
-  const SCALE = 4;
-  const MAX_SIDE = 768;
+ort.env.wasm.numThreads=1;
 
-  let selectedImage = null;
-  let sessionPromise = null;
-  let busy = false;
+const MODELS={
+ general:{
+  url:"https://huggingface.co/skillsafe-ai/realesr-general-x4v3/resolve/042a40bc4c918349ad3e2e607a68ae509a4c27b5/model.onnx",
+  input:"input",
+  output:"output"
+ },
+ x4plus:{
+  url:"https://huggingface.co/skillsafe-ai/realesrgan-x4plus/resolve/main/model.onnx",
+  input:"input",
+  output:"output"
+ },
+ swinir:{
+  url:"https://huggingface.co/Heliosoph/swinir-onnx/resolve/main/swinir_realsr_x4.onnx",
+  input:"image",
+  output:"upscaled"
+ }
+};
 
-  function status(message, percent) {
-    $("status").textContent = message;
-    $("progress").value = percent;
-  }
+const SCALE=4;
+const MAX_OUTPUT_PIXELS=40000000;
+const CHUNK_SIZE=16000;
 
-  function setBusy(value) {
-    busy = value;
-    $("upscale").disabled = value || !selectedImage;
-    $("file").disabled = value;
-    $("engine").disabled = value;
-  }
+let pc=null;
+let channel=null;
+let localSession=null;
+let localSessionPromise=null;
+let pendingRemote=null;
+let incoming=null;
+let taskCounter=0;
+let outputURL=null;
+let busy=false;
 
-  function loadSession() {
-    if (sessionPromise) return sessionPromise;
+function say(message){
+ $("processingStatus").textContent=message;
+}
 
-    sessionPromise = (async () => {
-      if (!window.ort) {
-        throw new Error(
-          "ONNX Runtime failed to load. Check your internet connection."
-        );
-      }
+function connection(message){
+ $("connectionStatus").textContent=message;
+}
 
-      // The dynamic-shape model is intended for WASM inference.
-      // WebGPU is attempted only when explicitly selected.
-      const engine = $("engine").value;
-      const providers = engine === "webgpu"
-        ? ["webgpu", "wasm"]
-        : ["wasm"];
+function updateProgress(done,total){
+ const percentage=Math.round(done/total*100);
+ $("bar").style.width=percentage+"%";
+ $("progressText").textContent=
+  "Completed "+done+" of "+total+" tiles ("+percentage+"%)";
+}
 
-      status("Loading AI runtime and downloading model…", 3);
+function waitICE(peer){
+ return new Promise((resolve,reject)=>{
+  if(peer.iceGatheringState==="complete")return resolve();
 
-      return await ort.InferenceSession.create(MODEL_URL, {
-        executionProviders: providers,
-        graphOptimizationLevel: "all"
-      });
-    })().catch(error => {
-      sessionPromise = null;
-      throw error;
-    });
+  const timer=setTimeout(()=>{
+   reject(Error("ICE gathering timed out."));
+  },20000);
 
-    return sessionPromise;
-  }
+  peer.addEventListener("icegatheringstatechange",()=>{
+   if(peer.iceGatheringState==="complete"){
+    clearTimeout(timer);
+    resolve();
+   }
+  });
+ });
+}
 
-  function imageToCanvas(image) {
-    const scale = Math.min(
-      1,
-      MAX_SIDE / Math.max(image.naturalWidth, image.naturalHeight)
-    );
+/* WEBRTC CONNECTION */
 
-    const width = Math.max(1, Math.round(image.naturalWidth * scale));
-    const height = Math.max(1, Math.round(image.naturalHeight * scale));
+$("connect").onclick=async()=>{
+ try{
+  $("connect").disabled=true;
+  connection("Creating offer...");
 
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
+  pc=new RTCPeerConnection({iceServers:[]});
 
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
-    ctx.drawImage(image, 0, 0, width, height);
-
-    return canvas;
-  }
-
-  function makeInput(canvas, x, y, width, height) {
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
-    const pixels = ctx.getImageData(x, y, width, height).data;
-    const plane = width * height;
-    const data = new Float32Array(3 * plane);
-
-    for (let i = 0; i < plane; i++) {
-      data[i] = pixels[i * 4] / 255;
-      data[plane + i] = pixels[i * 4 + 1] / 255;
-      data[2 * plane + i] = pixels[i * 4 + 2] / 255;
-    }
-
-    return new ort.Tensor("float32", data, [1, 3, height, width]);
-  }
-
-  function tensorToCanvas(tensor) {
-    const dims = tensor.dims;
-    const height = dims[2];
-    const width = dims[3];
-    const plane = width * height;
-    const data = tensor.data;
-
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-
-    const ctx = canvas.getContext("2d");
-    const imageData = ctx.createImageData(width, height);
-
-    for (let i = 0; i < plane; i++) {
-      imageData.data[i * 4] =
-        Math.max(0, Math.min(255, Math.round(data[i] * 255)));
-      imageData.data[i * 4 + 1] =
-        Math.max(0, Math.min(255, Math.round(data[plane + i] * 255)));
-      imageData.data[i * 4 + 2] =
-        Math.max(0, Math.min(255, Math.round(data[2 * plane + i] * 255)));
-      imageData.data[i * 4 + 3] = 255;
-    }
-
-    ctx.putImageData(imageData, 0, 0);
-    return canvas;
-  }
-
-  async function runTile(session, inputCanvas, outputCanvas,
-                         coreX, coreY, coreW, coreH) {
-    const x0 = Math.max(0, coreX - OVERLAP);
-    const y0 = Math.max(0, coreY - OVERLAP);
-    const x1 = Math.min(inputCanvas.width, coreX + coreW + OVERLAP);
-    const y1 = Math.min(inputCanvas.height, coreY + coreH + OVERLAP);
-
-    const tileW = x1 - x0;
-    const tileH = y1 - y0;
-    const input = makeInput(inputCanvas, x0, y0, tileW, tileH);
-
-    const results = await session.run({
-      [session.inputNames[0]]: input
-    });
-
-    const output = results[session.outputNames[0]];
-    const tileCanvas = tensorToCanvas(output);
-
-    const sourceX = (coreX - x0) * SCALE;
-    const sourceY = (coreY - y0) * SCALE;
-    const sourceW = coreW * SCALE;
-    const sourceH = coreH * SCALE;
-
-    const ctx = outputCanvas.getContext("2d");
-    ctx.drawImage(
-      tileCanvas,
-      sourceX, sourceY, sourceW, sourceH,
-      coreX * SCALE, coreY * SCALE, sourceW, sourceH
-    );
-
-    input.dispose?.();
-    output.dispose?.();
-  }
-
-  async function upscale() {
-    if (busy || !selectedImage) return;
-    setBusy(true);
-    $("download").style.display = "none";
-    $("result").style.display = "none";
-
-    try {
-      status("Preparing image…", 1);
-      const inputCanvas = imageToCanvas(selectedImage);
-      const width = inputCanvas.width;
-      const height = inputCanvas.height;
-
-      const outputCanvas = $("result");
-      outputCanvas.width = width * SCALE;
-      outputCanvas.height = height * SCALE;
-
-      const session = await loadSession();
-
-      const tilesX = Math.ceil(width / TILE);
-      const tilesY = Math.ceil(height / TILE);
-      const total = tilesX * tilesY;
-      let completed = 0;
-
-      for (let y = 0; y < height; y += TILE) {
-        for (let x = 0; x < width; x += TILE) {
-          const w = Math.min(TILE, width - x);
-          const h = Math.min(TILE, height - y);
-
-          await runTile(session, inputCanvas, outputCanvas, x, y, w, h);
-          completed++;
-
-          status(
-            `AI processing tile ${completed} of ${total}…`,
-            Math.round(completed / total * 100)
-          );
-        }
-      }
-
-      outputCanvas.style.display = "block";
-      $("download").href = outputCanvas.toDataURL("image/png");
-      $("download").download = "pixellift-upscaled.png";
-      $("download").style.display = "inline-block";
-
-      status(
-        `Finished! ${width} × ${height} → ` +
-        `${width * SCALE} × ${height * SCALE} pixels.`,
-        100
-      );
-    } catch (error) {
-      console.error(error);
-      const message = String(error?.message || error);
-
-      if (/fetch|network|load model|failed to load/i.test(message)) {
-        status(
-          "Couldn't download the model/runtime. Check the connection, " +
-          "then reload. Details: " + message,
-          0
-        );
-      } else {
-        status("AI upscaling failed: " + message, 0);
-      }
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  $("file").addEventListener("change", event => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      status("Please select a valid image file.", 0);
-      return;
-    }
-
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-
-    img.onload = () => {
-      if (selectedImage?.src?.startsWith("blob:")) {
-        URL.revokeObjectURL(selectedImage.src);
-      }
-
-      selectedImage = img;
-      $("original").src = url;
-      $("result").style.display = "none";
-      $("download").style.display = "none";
-      $("upscale").disabled = false;
-
-      status(
-        `Image ready: ${img.naturalWidth} × ${img.naturalHeight}.`,
-        0
-      );
-    };
-
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      status("Could not read that image. Try a PNG or JPEG.", 0);
-    };
-
-    img.src = url;
+  channel=pc.createDataChannel("pixellift",{
+   ordered:true
   });
 
-  $("upscale").addEventListener("click", upscale);
-})();
+  channel.binaryType="arraybuffer";
+  channel.bufferedAmountLowThreshold=256*1024;
+
+  channel.onopen=()=>{
+   connection("OPPO connected");
+   $("remoteStatus").textContent="Connected";
+   $("start").disabled=false;
+  };
+
+  channel.onclose=()=>{
+   connection("OPPO disconnected");
+   $("remoteStatus").textContent="Disconnected";
+   $("start").disabled=true;
+  };
+
+  channel.onmessage=handleMessage;
+
+  const offer=await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  await waitICE(pc);
+
+  $("offer").value=JSON.stringify(pc.localDescription);
+
+  connection("Offer ready. Paste it into OPPO.");
+
+ }catch(error){
+  connection("Connection error: "+error.message);
+  $("connect").disabled=false;
+ }
+};
+
+$("finish").onclick=async()=>{
+ try{
+  if(!pc)throw Error("Create an offer first.");
+
+  const answer=JSON.parse($("answer").value);
+  await pc.setRemoteDescription(answer);
+
+  connection("Waiting for OPPO...");
+ }catch(error){
+  connection("Answer error: "+error.message);
+ }
+};
+
+/* BINARY TRANSFER */
+
+async function sendBlob(blob){
+ const buffer=await blob.arrayBuffer();
+ const total=Math.ceil(buffer.byteLength/CHUNK_SIZE);
+
+ for(let i=0;i<total;i++){
+  const start=i*CHUNK_SIZE;
+  const end=Math.min(start+CHUNK_SIZE,buffer.byteLength);
+
+  const packet=new Uint8Array(4+end-start);
+
+  new DataView(packet.buffer).setUint32(0,i);
+  packet.set(new Uint8Array(buffer,start,end-start),4);
+
+  while(channel.bufferedAmount>500000){
+   await new Promise(resolve=>setTimeout(resolve,15));
+
+   if(channel.readyState!=="open"){
+    throw Error("OPPO connection lost.");
+   }
+  }
+
+  channel.send(packet);
+ }
+}
+
+function handleMessage(event){
+ if(typeof event.data!=="string"){
+  receiveBinary(event.data);
+  return;
+ }
+
+ let message;
+ try{
+  message=JSON.parse(event.data);
+ }catch{
+  return;
+ }
+
+ if(message.type==="hello"){
+  $("remoteStatus").textContent=
+   "Connected · WebGPU: "+(message.webgpu?"Available":"Unavailable");
+  return;
+ }
+
+ if(message.type==="result"){
+  if(!pendingRemote||message.id!==pendingRemote.id)return;
+
+  if(!Number.isSafeInteger(message.size)||message.size<=0){
+   pendingRemote.reject(Error("Invalid remote output size."));
+   pendingRemote=null;
+   return;
+  }
+
+  incoming={
+   id:message.id,
+   size:message.size,
+   received:0,
+   chunks:[]
+  };
+ }
+
+ if(message.type==="error"){
+  if(pendingRemote&&message.id===pendingRemote.id){
+   pendingRemote.reject(Error(message.message||"Remote processing failed."));
+   pendingRemote=null;
+   incoming=null;
+  }
+ }
+}
+
+function receiveBinary(data){
+ if(!incoming)return;
+
+ const packet=new Uint8Array(data);
+ if(packet.length<4)return;
+
+ const sequence=new DataView(
+  packet.buffer,packet.byteOffset,packet.byteLength
+ ).getUint32(0);
+
+ if(incoming.chunks[sequence])return;
+
+ const payload=packet.slice(4);
+ incoming.chunks[sequence]=payload;
+ incoming.received+=payload.length;
+
+ if(incoming.received>=incoming.size){
+  const output=new Uint8Array(incoming.size);
+  let offset=0;
+
+  for(let i=0;offset<incoming.size;i++){
+   const chunk=incoming.chunks[i];
+
+   if(!chunk)return;
+
+   const length=Math.min(chunk.length,incoming.size-offset);
+   output.set(chunk.subarray(0,length),offset);
+   offset+=length;
+  }
+
+  const blob=new Blob([output],{type:"image/png"});
+  const resolve=pendingRemote?.resolve;
+
+  incoming=null;
+  pendingRemote=null;
+
+  if(resolve)resolve(blob);
+ }
+}
+
+function remoteResult(id){
+ return new Promise((resolve,reject)=>{
+  pendingRemote={id,resolve,reject};
+ });
+}
+
+/* MODEL SESSION */
+
+async function createLocalSession(){
+ const key=$("model").value;
+ const model=MODELS[key];
+ const engine=$("engine").value;
+
+ if(localSession){
+  localSession.release?.();
+  localSession=null;
+ }
+
+ if(engine==="wasm"){
+  localSession=await ort.InferenceSession.create(model.url,{
+   executionProviders:["wasm"],
+   graphOptimizationLevel:"all",
+   enableCpuMemArena:false
+  });
+ }else{
+  try{
+   localSession=await ort.InferenceSession.create(model.url,{
+    executionProviders:["webgpu"],
+    graphOptimizationLevel:"all"
+   });
+
+   $("localStatus").textContent="WebGPU active";
+  }catch(error){
+   if(engine==="webgpu")throw error;
+
+   $("localStatus").textContent="WebGPU unavailable; using WASM";
+
+   localSession=await ort.InferenceSession.create(model.url,{
+    executionProviders:["wasm"],
+    graphOptimizationLevel:"all",
+    enableCpuMemArena:false
+   });
+  }
+ }
+
+ if(engine==="wasm"){
+  $("localStatus").textContent="WASM active";
+ }
+}
+
+/* IMAGE TO TENSOR */
+
+function tensorFromCanvas(canvas){
+ const ctx=canvas.getContext("2d",{
+  willReadFrequently:true
+ });
+
+ const pixels=ctx.getImageData(
+  0,0,canvas.width,canvas.height
+ ).data;
+
+ const n=canvas.width*canvas.height;
+ const data=new Float32Array(n*3);
+
+ for(let i=0;i<n;i++){
+  data[i]=pixels[i*4]/255;
+  data[n+i]=pixels[i*4+1]/255;
+  data[2*n+i]=pixels[i*4+2]/255;
+ }
+
+ return new ort.Tensor(
+  "float32",
+  data,
+  [1,3,canvas.height,canvas.width]
+ );
+}
+
+function tensorToCanvas(tensor){
+ if(tensor.dims.length!==4||tensor.dims[1]!==3){
+  throw Error("Unexpected model output tensor.");
+ }
+
+ const width=tensor.dims[3];
+ const height=tensor.dims[2];
+ const n=width*height;
+
+ const canvas=document.createElement("canvas");
+ canvas.width=width;
+ canvas.height=height;
+
+ const ctx=canvas.getContext("2d");
+ const image=ctx.createImageData(width,height);
+
+ for(let i=0;i<n;i++){
+  image.data[i*4]=Math.max(0,Math.min(255,tensor.data[i]*255));
+  image.data[i*4+1]=Math.max(0,Math.min(255,tensor.data[n+i]*255));
+  image.data[i*4+2]=Math.max(0,Math.min(255,tensor.data[2*n+i]*255));
+  image.data[i*4+3]=255;
+ }
+
+ ctx.putImageData(image,0,0);
+ return canvas;
+}
+
+async function canvasToBlob(canvas){
+ return new Promise((resolve,reject)=>{
+  canvas.toBlob(blob=>{
+   if(blob)resolve(blob);
+   else reject(Error("Image encoding failed."));
+  },"image/png");
+ });
+}
+
+/* TILE CREATION */
+
+async function makeTile(bitmap,x,y,size){
+ const canvas=document.createElement("canvas");
+ canvas.width=size;
+ canvas.height=size;
+
+ const ctx=canvas.getContext("2d");
+
+ ctx.fillStyle="#000";
+ ctx.fillRect(0,0,size,size);
+
+ const validWidth=Math.min(size,bitmap.width-x);
+ const validHeight=Math.min(size,bitmap.height-y);
+
+ ctx.drawImage(
+  bitmap,
+  x,y,validWidth,validHeight,
+  0,0,validWidth,validHeight
+ );
+
+ const blob=await canvasToBlob(canvas);
+
+ return {
+  blob,
+  x,y,
+  validWidth,
+  validHeight
+ };
+}
+
+/* LOCAL INFERENCE */
+
+async function processLocal(tile){
+ const model=MODELS[$("model").value];
+
+ const bitmap=await createImageBitmap(tile.blob);
+
+ const source=document.createElement("canvas");
+ source.width=bitmap.width;
+ source.height=bitmap.height;
+
+ source.getContext("2d").drawImage(bitmap,0,0);
+ bitmap.close();
+
+ const input=tensorFromCanvas(source);
+ let result=null;
+
+ try{
+  result=await localSession.run({
+   [model.input]:input
+  });
+
+  const output=result[model.output];
+  if(!output)throw Error("Model output name mismatch.");
+
+  return tensorToCanvas(output);
+
+ }finally{
+  input.dispose?.();
+
+  if(result){
+   Object.values(result).forEach(t=>t.dispose?.());
+  }
+
+  source.width=source.height=1;
+ }
+}
+
+/* REMOTE INFERENCE */
+
+async function processRemote(tile){
+ const id=++taskCounter;
+
+ const resultPromise=remoteResult(id);
+
+ sendJSON({
+  type:"task",
+  id:id,
+  model:$("model").value,
+  engine:"auto",
+  size:tile.blob.size
+ });
+
+ await sendBlob(tile.blob);
+
+ return await resultPromise;
+}
+
+function sendJSON(data){
+ if(!channel||channel.readyState!=="open"){
+  throw Error("OPPO is not connected.");
+ }
+
+ channel.send(JSON.stringify(data));
+}
+
+/* OUTPUT ASSEMBLY */
+
+async function placeOutput(canvas,tile,result){
+ let bitmap;
+
+ if(result instanceof Blob){
+  bitmap=await createImageBitmap(result);
+ }else{
+  bitmap=await createImageBitmap(await canvasToBlob(result));
+ }
+
+ const ctx=canvas.getContext("2d");
+
+ const width=tile.validWidth*SCALE;
+ const height=tile.validHeight*SCALE;
+
+ if(bitmap.width<width||bitmap.height<height){
+  bitmap.close();
+  throw Error("Output tile is smaller than expected.");
+ }
+
+ ctx.drawImage(
+  bitmap,
+  0,0,width,height,
+  tile.x*SCALE,tile.y*SCALE,width,height
+ );
+
+ bitmap.close();
+
+ if(result instanceof HTMLCanvasElement){
+  result.width=1;
+  result.height=1;
+ }
+}
+
+/* DISTRIBUTED SCHEDULER */
+
+async function runDistributed(){
+ if(busy)return;
+
+ const file=$("imageFile").files[0];
+
+ if(!file){
+  say("Select an image first.");
+  return;
+ }
+
+ if(!channel||channel.readyState!=="open"){
+  say("Connect the OPPO first.");
+  return;
+ }
+
+ busy=true;
+ $("start").disabled=true;
+ $("download").disabled=true;
+
+ let bitmap;
+
+ try{
+  say("Loading image...");
+  await createLocalSession();
+
+  bitmap=await createImageBitmap(file);
+
+  const width=bitmap.width;
+  const height=bitmap.height;
+
+  const outputWidth=width*SCALE;
+  const outputHeight=height*SCALE;
+
+  if(outputWidth*outputHeight>MAX_OUTPUT_PIXELS){
+   throw Error("Output exceeds the canvas memory limit. Use a smaller image.");
+  }
+
+  let tileSize=Number($("tileSize").value);
+
+  if($("model").value==="swinir"){
+   tileSize=64;
+   $("tileSize").value="64";
+  }
+
+  const tiles=[];
+
+  for(let y=0;y<height;y+=tileSize){
+   for(let x=0;x<width;x+=tileSize){
+    tiles.push(await makeTile(bitmap,x,y,tileSize));
+   }
+  }
+
+  const canvas=document.createElement("canvas");
+  canvas.width=outputWidth;
+  canvas.height=outputHeight;
+
+  const ctx=canvas.getContext("2d");
+
+  $("dimensions").textContent=
+   width+" × "+height+" → "+outputWidth+" × "+outputHeight;
+
+  let next=0;
+  let completed=0;
+  let localCount=0;
+  let remoteCount=0;
+  let firstError=null;
+
+  function takeTile(){
+   if(firstError) return null;
+   if(next>=tiles.length)return null;
+   return tiles[next++];
+  }
+
+  async function localWorker(){
+   while(true){
+    const tile=takeTile();
+    if(!tile)return;
+
+    try{
+     say("Chromebook processing tile...");
+     const result=await processLocal(tile);
+     await placeOutput(canvas,tile,result);
+     localCount++;
+    }catch(error){
+     firstError=error;
+     throw error;
+    }
+
+    completed++;
+    updateProgress(completed,tiles.length);
+   }
+  }
+
+  async function remoteWorker(){
+   while(true){
+    const tile=takeTile();
+    if(!tile)return;
+
+    try{
+     say("OPPO processing tile...");
+     const result=await processRemote(tile);
+     await placeOutput(canvas,tile,result);
+     remoteCount++;
+    }catch(error){
+     firstError=error;
+     throw error;
+    }
+
+    completed++;
+    updateProgress(completed,tiles.length);
+   }
+  }
+
+  say("Both devices are processing...");
+
+  await Promise.all([
+   localWorker(),
+   remoteWorker()
+  ]);
+
+  bitmap.close();
+  bitmap=null;
+
+  const blob=await canvasToBlob(canvas);
+
+  if(outputURL)URL.revokeObjectURL(outputURL);
+
+  outputURL=URL.createObjectURL(blob);
+
+  $("preview").src=outputURL;
+  $("preview").hidden=false;
+  $("download").disabled=false;
+
+  $("workStatus").textContent=
+   "Chromebook tiles: "+localCount+
+   " | OPPO tiles: "+remoteCount;
+
+  say("Processing completed successfully.");
+
+ }catch(error){
+  say("Processing failed: "+error.message);
+ }finally{
+  if(bitmap)bitmap.close();
+  busy=false;
+  $("start").disabled=!(channel&&channel.readyState==="open");
+ }
+}
+
+/* DOWNLOAD */
+
+$("start").onclick=runDistributed;
+
+$("download").onclick=()=>{
+ if(!outputURL)return;
+
+ const link=document.createElement("a");
+ link.href=outputURL;
+ link.download="PixelLift-Distributed-4x.png";
+ link.click();
+};
+
 </script>
 </body>
 </html>
